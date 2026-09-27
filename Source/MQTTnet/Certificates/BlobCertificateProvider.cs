@@ -16,7 +16,7 @@ public class BlobCertificateProvider(byte[] blob) : ICertificateProvider
     {
         #if NET10_0_OR_GREATER
 
-        if (string.IsNullOrEmpty(Password))
+        if (string.IsNullOrEmpty(Password) && X509Certificate2.GetCertContentType(Blob) == X509ContentType.Cert)
         {
             return X509CertificateLoader.LoadCertificate(Blob);
         }

@@ -13,6 +13,29 @@ namespace MQTTnet.Tests.Server;
 [TestClass]
 public sealed class Tls_Tests : BaseTestClass
 {
+    [TestMethod]
+    public async Task Connect_With_Passwordless_Pfx_Certificate()
+    {
+        using var certificate = CreateCertificate("1.3.6.1.5.5.7.3.1");
+        var testEnvironment = CreateTestEnvironment(MqttProtocolVersion.V500);
+        var serverOptions = testEnvironment.ServerFactory.CreateServerOptionsBuilder()
+            .WithoutDefaultEndpoint()
+            .WithEncryptedEndpoint()
+            .WithEncryptedEndpointPort(0)
+            .WithEncryptionSslProtocol(SslProtocols.Tls12)
+            .WithEncryptionCertificate(certificate.Export(X509ContentType.Pfx))
+            .Build();
+
+        var server = testEnvironment.CreateServer(serverOptions);
+        await server.StartAsync();
+
+        var client = await ConnectClientAsync(testEnvironment, _ => true, serverOptions.TlsEndpointOptions.Port);
+
+        Assert.IsTrue(client.IsConnected);
+
+        await server.StopAsync();
+    }
+
     static X509Certificate2 CreateCertificate(string oid)
     {
         var sanBuilder = new SubjectAlternativeNameBuilder();
@@ -165,11 +188,12 @@ public sealed class Tls_Tests : BaseTestClass
         await server.StopAsync();
     }
 
-    static async Task<IMqttClient> ConnectClientAsync(TestEnvironment testEnvironment, Func<MqttClientCertificateValidationEventArgs, bool> certValidator)
+    static async Task<IMqttClient> ConnectClientAsync(
+        TestEnvironment testEnvironment, Func<MqttClientCertificateValidationEventArgs, bool> certValidator, int port = 8883)
     {
         var clientOptionsBuilder = testEnvironment.ClientFactory.CreateClientOptionsBuilder();
         clientOptionsBuilder.WithClientId(Guid.NewGuid().ToString())
-            .WithTcpServer("localhost", 8883)
+            .WithTcpServer("localhost", port)
             .WithTlsOptions(
                 o =>
                 {
